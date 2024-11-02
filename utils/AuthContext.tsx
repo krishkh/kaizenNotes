@@ -1,41 +1,51 @@
 "use client";
 
 import { createContext, useState, useEffect } from "react";
-import { jwtDecode } from "jwt-decode";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+/**
+ * AuthContext is a context that holds the state of whether the user is authenticated or not.
+ * The value of the context is an object with a single property: isAuthenticated.
+ * isAuthenticated is a boolean that indicates whether the user is authenticated or not.
+ */
 const AuthContext = createContext<{
-  isLoggedIn: boolean | null;
+  isAuthenticated: boolean;
 }>({
-  isLoggedIn: false,
+  isAuthenticated: false,
 });
 
+/**
+ * AuthProvider is a component that wraps the children components and provides the AuthContext to them.
+ * It uses the useSession hook from next-auth to get the session data and set the isAuthenticated state accordingly.
+ * It also uses the useRouter hook to redirect the user to the login page if they are not authenticated.
+ * The children components can then use the useContext hook to get the isAuthenticated state and use it in their logic.
+ */
 export const AuthProvider = (props: { children: any }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(false);
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-    if (token) {
-      try {
-        const parsedToken = jwtDecode(token) as { exp: number };
-        if (parsedToken?.exp > Date.now() / 1000) {
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-          localStorage.removeItem("token");
-          window.location.href = "/login";
-        }
-      } catch (e) {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }
+  useEffect(() => {
+    if (!status || status === "unauthenticated") {
+      setIsAuthenticated(false);
+      router.push("/login");
     } else {
-      setIsLoggedIn(false);
-      window.location.href = "/login";
+      setIsAuthenticated(true);
+      router.push("/home");
     }
-  }, []);
+  }, [session, router]);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn: isLoggedIn }}>
-      {isLoggedIn === null ? <>Loading...</> : props.children}
+    <AuthContext.Provider value={{ isAuthenticated }}>
+      {props.children}
     </AuthContext.Provider>
   );
 };
+
+/**
+ * To use the isAuthenticated state in a child component, you can use the useContext hook like this:
+ * const { isAuthenticated } = useContext(AuthContext);
+ */
+
+
